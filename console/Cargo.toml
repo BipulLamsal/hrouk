@@ -1,0 +1,21 @@
+[package]
+name = "console"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hrouk-console"
+path = "src/main.rs"
+
+[dependencies]
+proto.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+iroh.workspace = true
+iroh-mdns-address-lookup.workspace = true
+n0-future.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
