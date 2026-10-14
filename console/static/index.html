@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+    <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>Registry</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+<h1>HR registry</h1>
+
+<p>Enroll a user: paste their <b>email</b> and the <b>endpoint id</b> from agent.  
+<code>hrouk-agent</code>. The private key stays on their device, only the public endpoint id is stored.</p>
+
+<form id="f">
+    <input name="email" placeholder="user@example.com" required>
+    <input name="endpoint_id" placeholder="endpoint id (public key)" required>
+    <input name="display_name" placeholder="Display name (optional)">
+<button>Register</button>
+</form>
+
+<div id="msg"></div>
+<h2>Status</h2>
+<table>
+    <thead>
+        <tr><th>email</th>
+            <th>state</th>
+            <th>last seen</th>
+        </tr>
+    </thead>
+<tbody id="status"></tbody></table>
+<h2>Enrolled users</h2>
+<table>
+    <thead>
+        <tr><th>email</th>
+            <th>endpoint</th>
+            <th>name</th>
+        </tr>
+    </thead>
+<tbody id="rows"></tbody></table>
+<script src="/app.js"></script>
+</body></html>

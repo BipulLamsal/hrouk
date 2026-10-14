@@ -1,0 +1,53 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 640px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  color: #222;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+form {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+input,
+button {
+  font-size: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+button {
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+td,
+th {
+  border: 1px solid #ddd;
+  padding: 0.4rem;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+#msg {
+  color: green;
+}
+
+.err {
+  color: red;
+}

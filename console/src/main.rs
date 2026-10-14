@@ -1,9 +1,11 @@
 //! Listens for mDNS announcements from agents and logs
 
+mod registry;
 mod state;
 
 use std::{
     collections::{HashMap, HashSet},
+    net::SocketAddr,
     path::PathBuf,
     time::Duration,
 };
@@ -32,6 +34,14 @@ struct Args {
     /// Seconds without an announcement before someone counts as logged out.
     #[arg(long, default_value_t = DEFAULT_STALE_AFTER_SECS)]
     stale_after: u64,
+
+    /// MySQL connection URL for the HR registry.
+    #[arg(long, default_value = "mysql://hrouk:hrouk@127.0.0.1:3306/hrouk")]
+    database_url: String,
+
+    /// Address for the HR registry web page.
+    #[arg(long, default_value = "0.0.0.0:8080")]
+    listen: SocketAddr,
 }
 
 #[tokio::main]
@@ -45,6 +55,18 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
+
+    // connection pool
+    let pool = sqlx::MySqlPool::connect(&args.database_url).await?;
+    let registry_pool = pool.clone();
+    let listen = args.listen;
+
+    // seperate thread for serving web content
+    tokio::spawn(async move {
+        if let Err(e) = registry::serve(registry_pool, listen).await {
+            tracing::warn!("registry web server stopped: {e:#}");
+        }
+    });
 
     let endpoint = Endpoint::builder(presets::Minimal)
         .secret_key(proto::identity::load_or_create(&args.identity)?)
@@ -63,6 +85,7 @@ async fn main() -> Result<()> {
     let mut emails: HashMap<String, Option<String>> = HashMap::new();
     let mut last_seen: HashMap<String, std::time::Instant> = HashMap::new();
 
+    // for first request till we get the email response
     let mut inflight: HashSet<String> = HashSet::new();
     let (login_tx, mut login_rx) =
         tokio::sync::mpsc::unbounded_channel::<(String, Option<String>)>();
@@ -73,17 +96,25 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             _ = sweep.tick() => {
+                // checks for timout
                 let stale = Duration::from_secs(args.stale_after);
                 let now = std::time::Instant::now();
+
                 let timed_out: Vec<String> = last_seen.iter()
                     .filter(|(_, t)| now.duration_since(**t) > stale)
                     .map(|(k, _)| k.clone())
                     .collect();
+
                 for key in timed_out {
                     last_seen.remove(&key);
                     inflight.remove(&key);
                     let email = emails.remove(&key).flatten();
                     println!("[{}] LOGOUT {} ({})", stamp(), email.as_deref().unwrap_or("?"), key);
+
+                    if let Some(email) = email {
+                        let authorized = registry::is_valid(&pool, &email, &key).await;
+                        registry::log_presence(&pool, &email, &key, "logout", authorized).await;
+                    }
                 }
             }
             Some((key, result)) = login_rx.recv() => {
@@ -97,7 +128,10 @@ async fn main() -> Result<()> {
                         let slot = emails.get_mut(&key).expect("checked above");
                         if slot.is_none() {
                             *slot = Some(email.clone());
-                            println!("[{}] LOGIN  {} ({})", stamp(), email, key);
+                            let authorized = registry::is_valid(&pool, &email, &key).await;
+                            let tag = if authorized { "AUTHORIZED" } else { "UNKNOWN" };
+                            println!("[{}] LOGIN  {} ({}) [{tag}]", stamp(), email, key);
+                            registry::log_presence(&pool, &email, &key, "login", authorized).await;
                         }
                     }
                     None => debug!(%key, "identity fetch failed; will retry on next announcement"),
@@ -134,6 +168,10 @@ async fn main() -> Result<()> {
                         inflight.remove(&key);
                         if let Some(email) = emails.remove(&key) {
                             println!("[{}] LOGOUT {} ({})", stamp(), email.as_deref().unwrap_or("?"), key);
+                            if let Some(email) = email {
+                                let authorized = registry::is_valid(&pool, &email, &key).await;
+                                registry::log_presence(&pool, &email, &key, "logout", authorized).await;
+                            }
                         }
                     }
                     _ => {}
