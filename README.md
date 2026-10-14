@@ -4,6 +4,8 @@ hrouk shows who is on your local network. It runs on your local network with no 
 
 An agent runs on each employee laptop and announces itself on the LAN. The console hears that announcement, asks the agent who it is over an encrypted iroh connection, and checks the answer against a list managed by HR. Every login and logout is written to a simple MySQL database.
 
+![arch](img/arch.png)
+
 ## Roles
 
 An employee runs the agent with their email and sends the printed endpoint id to HR. HR opens the console web page and enrolls that email together with the endpoint id. The console watches the LAN, validates each login as authorized or unknown, and records presence.
